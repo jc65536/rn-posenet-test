@@ -1,22 +1,81 @@
-import { StatusBar } from 'expo-status-bar';
-import React from 'react';
-import { StyleSheet, Text, View, Button, TextInput } from 'react-native';
-import AsyncStorage from '@react-native-async-storage/async-storage';
+import { StatusBar } from "expo-status-bar";
+import React from "react";
+import { StyleSheet, Text, View, Button, TextInput } from "react-native";
+import AsyncStorage from "@react-native-async-storage/async-storage";
+import { BottomNavigation, Drawer, Avatar, IconToggle, Toolbar } from "react-native-material-ui";
 
-export default function App() {
-    return (
-        <View style={{ padding: 50 }}>
-            <View style={{ flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' }}>
-                <TextInput placeholder={"Course Goal"} style={{ width: '80%', borderBottomColor: 'black', borderWidth: 0.5, padding: 10 }} />
-                <Button title={"Add"} />
-            </View>
+class App extends React.Component {
+
+    state = {
+        active: ""
+    }
+
+    render() {
+        return (
             <View>
-                <Button title={"Save Data"} onPress={buttonClick} />
-                <TextInput>Hello World</TextInput>
+                <Toolbar
+                    leftElement="menu"
+                    centerElement="Searchable"
+                    searchable={{
+                        autoFocus: true,
+                        placeholder: 'Search',
+                    }}
+                    rightElement={{
+                        menu: {
+                            icon: "more-vert",
+                            labels: ["item 1", "item 2"]
+                        }
+                    }}
+                    onRightElementPress={(label) => { console.log(label) }}
+                    style={{
+                        fontSize: 2
+                    }}
+                />
+
+                <View style={{ flexDirection: "row", justifyContent: "space-between", alignItems: "center" }}>
+                    <TextInput placeholder={"Course Goal"} style={{ width: "80%", borderBottomColor: "black", borderWidth: 0.5, padding: 10 }} />
+                    <View>
+                        <IconToggle name="person" />
+                    </View>
+                </View>
+                <View>
+                    <Button title={"Save Data"} onPress={buttonClick} />
+                    <TextInput>Hello World</TextInput>
+                </View>
+                <BottomNavigation active={this.state.active} hidden={false} >
+                    <BottomNavigation.Action
+                        key="today"
+                        icon="today"
+                        label="Today"
+                        onPress={() => this.setState({ active: "today" })}
+                    />
+                    <BottomNavigation.Action
+                        key="people"
+                        icon="people"
+                        label="People"
+                        onPress={() => this.setState({ active: "people" })}
+                    />
+                    <BottomNavigation.Action
+                        key="bookmark-border"
+                        icon="bookmark-border"
+                        label="Bookmark"
+                        onPress={() => this.setState({ active: "bookmark-border" })}
+                    />
+                    <BottomNavigation.Action
+                        key="settings"
+                        icon="settings"
+                        label="Settings"
+                        onPress={() => this.setState({ active: "settings" })}
+                    />
+                </BottomNavigation>
+
+
             </View>
-        </View>
-    );
+        );
+    }
 }
+
+export default App;
 
 const styles = StyleSheet.create({});
 var k = true;

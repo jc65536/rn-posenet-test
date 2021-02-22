@@ -17,3 +17,10 @@ Also download expo go on your phone
 
 more info on this site https://docs.expo.io/get-started/installation/
 
+### Jason's experience:
+It seems like besides the initial `npm install`, we should be using yarn; otherwise it risks automatically removing everything yarn had added.
+```
+npm install package.json
+yarn add expo
+expo start
+```
