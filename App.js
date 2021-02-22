@@ -29,6 +29,7 @@ export default function App() {
 
     const [ctx, setCanvasContext] = useState(null);
 
+    const [debugText, setDebugText] = useState("");
 
     //-----------------------------
     // Run effect once
@@ -40,16 +41,17 @@ export default function App() {
         if (!frameworkReady) {
             (async () => {
 
-                //check permissions
+                // check permissions
                 const { status } = await Camera.requestPermissionsAsync();
                 console.log(`permissions status: ${status}`);
 
-                //we must always wait for the Tensorflow API to be ready before any TF operation...
+                // we must always wait for the Tensorflow API to be ready before any TF operation...
                 await tf.ready();
+                console.log("TF is ready");
 
-                //load the mobilenet model and save it in state
+                // load the mobilenet model and save it in state
                 setPosenetModel(await posenet.load());
-                console.log(posenetModel);
+                console.log("Posenet model loaded");
 
                 setFrameworkReady(true);
             })();
@@ -64,22 +66,29 @@ export default function App() {
     //--------------------------
     useEffect(() => {
         return () => {
+            console.log("Unmounted!");
             cancelAnimationFrame(requestAnimationFrameId);
         };
     }, [requestAnimationFrameId]);
 
 
     const getPrediction = async (tensor) => {
-        if (!tensor) return;
+        if (!tensor || !posenetModel) return;
 
         // TENSORFLOW MAGIC HAPPENS HERE!
-        const pose = await posenetModel.estimateSinglePose(tensor, 0.5, true, 16);
-        if (pose === null) return;
-        
-        drawSkeleton(pose);
+        const pose = tf.tidy(async () => await posenetModel.estimateSinglePose(tensor, 0.5, true, 16));     // cannot have async function within tf.tidy
+        if (!pose) return;
+
+        var numTensors = tf.memory().numTensors;
+        setDebugText(`Tensors: ${numTensors}\n\n${JSON.stringify(pose)}`);
+        if (numTensors > 350) {
+            console.log("350 tensors exceeded; stopping");      // Doesn't actually stop?!
+            cancelAnimationFrame(requestAnimationFrameId);
+        }
+        // drawSkeleton(pose);
     }
 
-
+    /*
     const drawPoint = (x, y) => {
         ctx.beginPath();
         ctx.arc(x, y, 3, 0, 2 * Math.PI);
@@ -108,12 +117,15 @@ export default function App() {
             drawSegment(keypoints[0].position.x, keypoints[0].position.y, keypoints[1].position.x, keypoints[1].position.y);
         });
     }
+    */
 
 
     const handleCameraStream = (imageAsTensors) => {
         const loop = async () => {
-            const nextImageTensor = await imageAsTensors.next().value;
-            await getPrediction(nextImageTensor);
+            if (frameworkReady) {
+                const nextImageTensor = await imageAsTensors.next().value;
+                await getPrediction(nextImageTensor);
+            }
             requestAnimationFrameId = requestAnimationFrame(loop);
         };
         loop();
@@ -152,6 +164,7 @@ export default function App() {
                 {renderCameraView()}
                 <Canvas ref={handleCanvas} style={styles.canvas} />
             </View>
+            <Text>{debugText}</Text>
         </View>
     );
 }
@@ -187,7 +200,7 @@ const styles = StyleSheet.create({
 
 
 
-/////////////////////////////////////////////////////////////////////////////////////////////////////
+///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 
 
 // Stores the data; no need to worry about converting to strings ;)
