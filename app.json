@@ -1,0 +1,12 @@
+{
+  "name": "rn-posenet-test-bare",
+  "displayName": "rn-posenet-test-bare",
+  "expo": {
+    "name": "rn-posenet-test-bare",
+    "slug": "rn-posenet-test-bare",
+    "version": "1.0.0",
+    "assetBundlePatterns": [
+      "**/*"
+    ]
+  }
+}
