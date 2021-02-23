@@ -32,6 +32,8 @@ export default function App() {
 
     const [debugText, setDebugText] = useState("");
 
+    let cameraLoopStarted = false;
+
     //-----------------------------
     // Run effect once
     // 1. Check camera permissions
@@ -87,7 +89,7 @@ export default function App() {
         if (!pose) return;
 
         var numTensors = tf.memory().numTensors;
-        console.log(numTensors);
+        setDebugText(`Tensors: ${numTensors}\n\nPose:\n${JSON.stringify(pose)}`);
         // drawSkeleton(pose);
     }
 
@@ -124,6 +126,8 @@ export default function App() {
 
 
     const handleCameraStream = (imageAsTensors) => {
+        if (cameraLoopStarted) return;      // guarantees that the image loop only runs once
+        cameraLoopStarted = true;
         const loop = async () => {
             if (frameworkReady) {
                 const nextImageTensor = await imageAsTensors.next().value;
