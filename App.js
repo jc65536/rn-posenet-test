@@ -26,7 +26,7 @@ export default function App() {
 
     //performance hacks (Platform dependent)
     const textureDims = { width: 1600, height: 1200 };
-    const tensorDims = { width: 257, height: 257 };
+    const tensorDims = { width: 200, height: 200 };
 
     const [ctx, setCanvasContext] = useState(null);
 
@@ -57,7 +57,7 @@ export default function App() {
                     architecture: "MobileNetV1",
                     outputStride: 16,
                     multiplier: 0.5,
-                    quantBytes: 1
+                    quantBytes: 2
                 }));
                 console.log("Posenet model loaded");
 
