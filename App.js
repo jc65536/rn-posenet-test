@@ -26,7 +26,7 @@ export default function App() {
 
     //performance hacks (Platform dependent)
     const textureDims = { width: 1600, height: 1200 };
-    const tensorDims = { width: 152, height: 200 };
+    const tensorDims = { width: 257, height: 257 };
 
     const [ctx, setCanvasContext] = useState(null);
 
@@ -56,7 +56,6 @@ export default function App() {
                 setPosenetModel(await posenet.load({
                     architecture: "MobileNetV1",
                     outputStride: 16,
-                    inputResolution: tensorDims,
                     multiplier: 0.5,
                     quantBytes: 1
                 }));
@@ -84,16 +83,17 @@ export default function App() {
     const getPrediction = async (tensor) => {
         if (!tensor || !posenetModel) return;
 
+        const t0 = performance.now();
         // TENSORFLOW MAGIC HAPPENS HERE!
         const pose = await posenetModel.estimateSinglePose(tensor, 0.5, true, 16)     // cannot have async function within tf.tidy
+        // console.log((performance.now() - t0));
         if (!pose) return;
 
         var numTensors = tf.memory().numTensors;
-        setDebugText(`Tensors: ${numTensors}\n\nPose:\n${JSON.stringify(pose)}`);
-        // drawSkeleton(pose);
+        drawSkeleton(pose);
     }
 
-    /*
+    
     const drawPoint = (x, y) => {
         ctx.beginPath();
         ctx.arc(x, y, 3, 0, 2 * Math.PI);
@@ -116,13 +116,22 @@ export default function App() {
 
 
     const drawSkeleton = (pose) => {
+        console.log(pose);
         const minPartConfidence = 0.1;
+        for (var i = 0; i < pose.keypoints.length; i++) {
+            const keypoint = pose.keypoints[i];
+            if (keypoint.score < minPartConfidence) {
+                continue;
+            }
+            console.log(keypoint);
+            drawPoint(keypoint['position']['x'], keypoint['position']['y']);
+        }
         const adjacentKeyPoints = posenet.getAdjacentKeyPoints(pose.keypoints, minPartConfidence);
         adjacentKeyPoints.forEach((keypoints) => {
             drawSegment(keypoints[0].position.x, keypoints[0].position.y, keypoints[1].position.x, keypoints[1].position.y);
         });
     }
-    */
+    
 
 
     const handleCameraStream = (imageAsTensors) => {
