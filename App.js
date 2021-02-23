@@ -19,6 +19,7 @@ export default function App() {
     //Tensorflow and Permissions
     const [posenetModel, setPosenetModel] = useState(null);
     const [frameworkReady, setFrameworkReady] = useState(false);
+    const [loopStarted, setLoopStarted] = useState(false);
 
     const TensorCamera = cameraWithTensors(Camera);
     let requestAnimationFrameId = 0;
@@ -50,7 +51,13 @@ export default function App() {
                 console.log("TF is ready");
 
                 // load the mobilenet model and save it in state
-                setPosenetModel(await posenet.load());
+                setPosenetModel(await posenet.load({
+                    architecture: "MobileNetV1",
+                    outputStride: 16,
+                    inputResolution: tensorDims,
+                    multiplier: 0.5,
+                    quantBytes: 1
+                }));
                 console.log("Posenet model loaded");
 
                 setFrameworkReady(true);
@@ -76,15 +83,10 @@ export default function App() {
         if (!tensor || !posenetModel) return;
 
         // TENSORFLOW MAGIC HAPPENS HERE!
-        const pose = tf.tidy(async () => await posenetModel.estimateSinglePose(tensor, 0.5, true, 16));     // cannot have async function within tf.tidy
+        const pose = await posenetModel.estimateSinglePose(tensor, 0.5, true, 16)     // cannot have async function within tf.tidy
         if (!pose) return;
 
         var numTensors = tf.memory().numTensors;
-        setDebugText(`Tensors: ${numTensors}\n\n${JSON.stringify(pose)}`);
-        if (numTensors > 350) {
-            console.log("350 tensors exceeded; stopping");      // Doesn't actually stop?!
-            cancelAnimationFrame(requestAnimationFrameId);
-        }
         // drawSkeleton(pose);
     }
 
