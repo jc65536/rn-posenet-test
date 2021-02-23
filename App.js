@@ -52,12 +52,22 @@ export default function App() {
 
                 // load the mobilenet model and save it in state
                 setPosenetModel(await posenet.load({
+<<<<<<< HEAD
                     architecture: "MobileNetV1",
                     outputStride: 16,
                     inputResolution: tensorDims,
                     multiplier: 0.5,
                     quantBytes: 1
                 }));
+=======
+                    architecture: 'MobileNetV1',
+                    outputStride: 16,
+                    inputResolution: textureDims,
+                    multiplier: 0.5,
+                    quantBytes: 1
+                }));
+
+>>>>>>> bec8728a6c734e0ebe9aa825398f22a014bff04f
                 console.log("Posenet model loaded");
 
                 setFrameworkReady(true);
@@ -83,7 +93,11 @@ export default function App() {
         if (!tensor || !posenetModel) return;
 
         // TENSORFLOW MAGIC HAPPENS HERE!
+<<<<<<< HEAD
         const pose = await posenetModel.estimateSinglePose(tensor, 0.5, true, 16)     // cannot have async function within tf.tidy
+=======
+        const pose = await posenetModel.estimateSinglePose(tensor);     // cannot have async function within tf.tidy
+>>>>>>> bec8728a6c734e0ebe9aa825398f22a014bff04f
         if (!pose) return;
 
         var numTensors = tf.memory().numTensors;
