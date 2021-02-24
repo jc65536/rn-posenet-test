@@ -15,6 +15,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // canvas
 import Canvas from "react-native-canvas";
 import { parse } from "@babel/core";
+import { imag } from "@tensorflow/tfjs";
 
 
 export default function App() {
@@ -22,7 +23,7 @@ export default function App() {
   //Tensorflow and Permissions
   const [posenetModel, setPosenetModel] = useState<posenet.PoseNet | null>(null);
   const [frameworkReady, setFrameworkReady] = useState(false);
-  const [loopStarted, setLoopStarted] = useState(false);
+  const [imageAsTensors, setImageAsTensors] = useState(null);
 
   let requestAnimationFrameId = 0;
 
@@ -50,8 +51,6 @@ export default function App() {
         await tf.ready();
         console.log("TF is ready");
 
-        console.log(await getData("test"))
-
         // load the mobilenet model and save it in state
         const modelJson = require("./models/model-stride16.json");
         const modelWeights = require("./models/group1-shard1of1.bin");
@@ -68,6 +67,14 @@ export default function App() {
       })();
     }
   }, []);
+
+
+  useEffect(() => {
+    if (frameworkReady && imageAsTensors) {
+      console.log("framework and camera ready!");
+      loop();
+    }
+  }, [frameworkReady, imageAsTensors]);
 
 
   //--------------------------
@@ -127,24 +134,23 @@ export default function App() {
   }
   */
 
+  const loop = async () => {
+    if (!imageAsTensors) return;
+    // @ts-ignore
+    const nextImageTensor = await imageAsTensors.next().value;
+    if (nextImageTensor) {
+      await getPrediction(nextImageTensor);
+      nextImageTensor.dispose();
+    }
+    requestAnimationFrameId = requestAnimationFrame(loop);
+  }
 
-  const handleCameraStream = (imageAsTensors) => {
+
+  const handleCameraStream = (iat) => {
     console.log("Camera loaded")
     if (cameraLoopStarted) return;      // guarantees that the image loop only runs once
     cameraLoopStarted = true;
-    const loop = async () => {
-      if (frameworkReady) {
-        console.log("framework ready");
-        const nextImageTensor = await imageAsTensors.next().value;
-        if (nextImageTensor) {
-          console.log("processing next image");
-          await getPrediction(nextImageTensor);
-          nextImageTensor.dispose();
-        }
-      }
-      requestAnimationFrameId = requestAnimationFrame(loop);
-    };
-    loop();
+    setImageAsTensors(iat);
   }
 
 
@@ -169,6 +175,9 @@ export default function App() {
         />
         <Canvas ref={handleCanvas} style={styles.canvas} />
       </View>
+      <Button title="Log states" onPress={() => {
+        console.log(`frameworkReady: ${frameworkReady}`)
+      }} />
       <Text>{`Framework ready: ${frameworkReady}\n${debugText}`}</Text>
     </View>
   );
