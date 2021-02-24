@@ -6,7 +6,9 @@
     "slug": "rn-posenet-test-bare",
     "version": "1.0.0",
     "assetBundlePatterns": [
-      "**/*"
+      "**/*",
+      "models/*"
     ]
-  }
+  },
+  "packagerOpts": { "sourceExts": [ "bin", "ttf", "png"] }
 }
