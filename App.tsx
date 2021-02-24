@@ -15,7 +15,8 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // canvas
 import Canvas from "react-native-canvas";
 import { parse } from "@babel/core";
-import { imag } from "@tensorflow/tfjs";
+import { imag, Tensor, Tensor3D } from "@tensorflow/tfjs";
+import { PosenetInput } from "@tensorflow-models/posenet/dist/types";
 
 
 export default function App() {
@@ -23,9 +24,10 @@ export default function App() {
   //Tensorflow and Permissions
   const [posenetModel, setPosenetModel] = useState<posenet.PoseNet | null>(null);
   const [frameworkReady, setFrameworkReady] = useState(false);
-  const [imageAsTensors, setImageAsTensors] = useState(null);
+  const [imageAsTensors, setImageAsTensors] = useState<IterableIterator<Tensor3D> | null>(null);
+  const [running, setRunning] = useState(false);
 
-  let requestAnimationFrameId = 0;
+  const rafId = React.useRef(0);
 
   //performance hacks (Platform dependent)
   const textureDims = { width: 1600, height: 1200 };
@@ -34,8 +36,6 @@ export default function App() {
   const [ctx, setCanvasContext] = useState(null);
 
   const [debugText, setDebugText] = useState("Loading...");
-
-  let cameraLoopStarted = false;
 
   //-----------------------------
   // Run effect once
@@ -71,35 +71,35 @@ export default function App() {
 
   useEffect(() => {
     if (frameworkReady && imageAsTensors) {
-      console.log("framework and camera ready!");
-      loop();
+      console.log("framework and camera ready");
+      setRunning(true);
     }
   }, [frameworkReady, imageAsTensors]);
 
-
-  //--------------------------
-  // Run onUnmount routine
-  // for cancelling animation 
-  // (if running) to avoid leaks
-  //--------------------------
   useEffect(() => {
-    return () => {
-      console.log("Unmounted!");
-      cancelAnimationFrame(requestAnimationFrameId);
-      setFrameworkReady(false);
-    };
-  }, [requestAnimationFrameId]);
+    if (running) {
+      console.log("starting loop");
+      loop();
+    } else {
+      cancelAnimationFrame(rafId.current);
+      console.log(`stopped!`);
+    }
+  }, [running])
 
-
-  const getPrediction = async (tensor) => {
+  const getPrediction = async (tensor: PosenetInput) => {
     if (!tensor || !posenetModel) return;
 
     // TENSORFLOW MAGIC HAPPENS HERE!
+    const t0 = performance.now()
     const pose = await posenetModel.estimateSinglePose(tensor, { flipHorizontal: true })     // cannot have async function within tf.tidy
-    if (!pose) return;
+    if (!pose) {
+      console.log("pose estimation error");
+      return;
+    }
 
     var numTensors = tf.memory().numTensors;
-    setDebugText(`Tensors: ${numTensors}\n\nPose:\n${JSON.stringify(pose)}`);
+    console.log(pose);
+    setDebugText(`Tensors: ${numTensors}\nEstimation time: ${performance.now() - t0}\nPose:\n${JSON.stringify(pose)}`);
     // drawSkeleton(pose);
   }
 
@@ -134,22 +134,20 @@ export default function App() {
   }
   */
 
-  const loop = async () => {
-    if (!imageAsTensors) return;
+  const loop = () => {    
     // @ts-ignore
-    const nextImageTensor = await imageAsTensors.next().value;
+    const nextImageTensor = imageAsTensors.next().value;
     if (nextImageTensor) {
-      await getPrediction(nextImageTensor);
-      nextImageTensor.dispose();
+      getPrediction(nextImageTensor).then(() => {
+        nextImageTensor.dispose();
+        rafId.current = requestAnimationFrame(loop);
+      })
     }
-    requestAnimationFrameId = requestAnimationFrame(loop);
   }
 
 
   const handleCameraStream = (iat) => {
     console.log("Camera loaded")
-    if (cameraLoopStarted) return;      // guarantees that the image loop only runs once
-    cameraLoopStarted = true;
     setImageAsTensors(iat);
   }
 
@@ -176,8 +174,9 @@ export default function App() {
         <Canvas ref={handleCanvas} style={styles.canvas} />
       </View>
       <Button title="Log states" onPress={() => {
-        console.log(`frameworkReady: ${frameworkReady}`)
+        console.log(`========================\nframeworkReady: ${frameworkReady}\nimageAsTensors: ${imageAsTensors ? "loaded" : "unloaded"}\nrunning: ${running}\nrafId: ${rafId.current}\n========================`);
       }} />
+      <Button color={running ? "#ee5511" : "#33cc44"} title={`${running ? "Stop" : "Start"} animation`} onPress={() => setRunning(!running)} />
       <Text>{`Framework ready: ${frameworkReady}\n${debugText}`}</Text>
     </View>
   );
