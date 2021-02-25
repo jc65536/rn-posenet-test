@@ -15,8 +15,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // canvas
 import Canvas from "react-native-canvas";
 import { parse } from "@babel/core";
-import { imag, Tensor, Tensor3D } from "@tensorflow/tfjs";
+import { imag, tensor, Tensor, Tensor3D } from "@tensorflow/tfjs";
 import { PosenetInput } from "@tensorflow-models/posenet/dist/types";
+
+const TensorCamera = cameraWithTensors(Camera);
 
 
 export default function App() {
@@ -55,9 +57,11 @@ export default function App() {
         const modelJson = require("./models/model-stride16.json");
         const modelWeights = require("./models/group1-shard1of1.bin");
         setPosenetModel(await posenet.load({
-          // this forces typescript to ignore type checking
-          // @ts-ignore
-          modelUrl: bundleResourceIO(modelJson, modelWeights)
+          architecture: "MobileNetV1",
+          outputStride: 16,
+          multiplier: 0.5,
+          inputResolution: tensorDims,
+          quantBytes: 2
         }).then(model => {
           console.log("Posenet model loaded");
           return model;
@@ -98,40 +102,66 @@ export default function App() {
     }
 
     var numTensors = tf.memory().numTensors;
-    setDebugText(`Tensors: ${numTensors}\nEstimation time: ${performance.now() - t0}\nPose:\n${JSON.stringify(pose)}`);
-    // drawSkeleton(pose);
+    console.log(pose);
+    console.log("hello world!");
+    // setDebugText(`Tensors: ${numTensors}\nEstimation time: ${performance.now() - t0}\nPose:\n${JSON.stringify(pose)}`);
+    drawSkeleton(pose);
   }
 
-  /*
+
   const drawPoint = (x, y) => {
+    if (ctx != null) {
+      // @ts-ignore
       ctx.beginPath();
+      // @ts-ignore
       ctx.arc(x, y, 3, 0, 2 * Math.PI);
+      // @ts-ignore
       ctx.fillStyle = "#00ff00";
+      // @ts-ignore
       ctx.fill();
+      // @ts-ignore
       ctx.closePath();
+    }
   }
 
 
   const drawSegment = (x1, y1, x2, y2) => {
-      console.log(`${x1}, ${y1}, ${x2}, ${y2}`);
+    if (ctx != null) {
+      // @ts-ignore
       ctx.beginPath();
+      // @ts-ignore
       ctx.moveTo(x1, y1);
+      // @ts-ignore
       ctx.lineTo(x2, y2);
+      // @ts-ignore
       ctx.lineWidth = 3;
+      // @ts-ignore
       ctx.strokeStyle = "#00ff00";
+      // @ts-ignore
       ctx.stroke();
+      // @ts-ignore
       ctx.closePath();
+    }
   }
 
 
   const drawSkeleton = (pose) => {
-      const minPartConfidence = 0.1;
-      const adjacentKeyPoints = posenet.getAdjacentKeyPoints(pose.keypoints, minPartConfidence);
-      adjacentKeyPoints.forEach((keypoints) => {
-          drawSegment(keypoints[0].position.x, keypoints[0].position.y, keypoints[1].position.x, keypoints[1].position.y);
-      });
+    console.log(pose);
+    const minPartConfidence = 0.1;
+    for (var i = 0; i < pose.keypoints.length; i++) {
+      const keypoint = pose.keypoints[i];
+      if (keypoint.score < minPartConfidence) {
+        continue;
+      }
+      console.log(keypoint);
+      drawPoint(keypoint['position']['x'], keypoint['position']['y']);
+    }
+    const adjacentKeyPoints = posenet.getAdjacentKeyPoints(pose.keypoints, minPartConfidence);
+    adjacentKeyPoints.forEach((keypoints) => {
+      drawSegment(keypoints[0].position.x, keypoints[0].position.y, keypoints[1].position.x, keypoints[1].position.y);
+    });
   }
-  */
+
 
   const loop = () => {
     // @ts-ignore
