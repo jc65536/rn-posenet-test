@@ -27,6 +27,8 @@ export default function App() {
   const [posenetModel, setPosenetModel] = useState<posenet.PoseNet | null>(null);
   const [frameworkReady, setFrameworkReady] = useState(false);
   const [imageAsTensors, setImageAsTensors] = useState<IterableIterator<Tensor3D> | null>(null);
+  const [canvas, setCanvas] = useState<any>(null);
+
   const [running, setRunning] = useState(false);
 
   const rafId = React.useRef(0);
@@ -103,8 +105,6 @@ export default function App() {
 
     var numTensors = tf.memory().numTensors;
 
-    console.log("CAM_WIDTH " + CAM_WIDTH);
-    console.log("CAM_HEIGHT " + CAM_HEIGHT);
     //console.log(pose);
     //console.log("hello world!");
     // setDebugText(`Tensors: ${numTensors}\nEstimation time: ${performance.now() - t0}\nPose:\n${JSON.stringify(pose)}`);
@@ -113,37 +113,36 @@ export default function App() {
 
   
   const drawPoint = (path, x, y) => {
-    const x1 = (x / tensorDims.width) * CAM_WIDTH;
-    const y1 = (y / tensorDims.height) * CAM_HEIGHT;
+    const x1 = (CAM_WIDTH / tensorDims.width) * x;
+    const y1 = (CAM_HEIGHT / tensorDims.width) * y;
     console.log(`${x1}, ${y1}`);
 
     console.log("x1: " + x1);
-      path.beginPath();
+
       path.arc(x1, y1, 3, 0, 2 * Math.PI);
-      path.fillStyle = "#00ff00";
-      path.fill();
       path.closePath();
   }
 
 
   const drawSegment = (path, x1, y1, x2, y2) => {
-      const x3 = (x1 / tensorDims.width) * CAM_WIDTH;
-      const y3 = (y1 / tensorDims.height) * CAM_HEIGHT;
-      const x4 = (x2 / tensorDims.width) * CAM_WIDTH;
-      const y4 = (y2 / tensorDims.height) * CAM_HEIGHT;
+    const x3 = (CAM_WIDTH / tensorDims.width) * x1;
+    const y3 = (CAM_HEIGHT / tensorDims.width) * y1;
+
+    const x4 = (CAM_WIDTH / tensorDims.width) * x2;
+    const y4 = (CAM_HEIGHT / tensorDims.width) * y2;
       console.log(`${x3}, ${y3}, ${x4}, ${y4}`);
+
       path.moveTo(x3, y3);
       path.lineTo(x4, y4);
       path.lineWidth = 3;
-      path.strokeStyle = "#00ff00";
-      path.stroke();
       path.closePath();
   }
 
 
   const drawSkeleton = (pose) => {
-    ctx.clearRect(0,0, CAM_WIDTH, CAM_HEIGHT);
-    let path2d = new Path2D();
+    if (ctx != undefined) {
+    let dots2d = new Path2D(canvas);
+    let lines2d = new Path2D(canvas);
     const minPartConfidence = 0.1;
     for (var i = 0; i < pose.keypoints.length; i++) {
         const keypoint = pose.keypoints[i];
@@ -151,15 +150,22 @@ export default function App() {
             continue;
         }
         // console.log(keypoint);
-        drawPoint(path2d,keypoint['position']['x'], keypoint['position']['y']);
+        drawPoint(dots2d,keypoint['position']['x'], keypoint['position']['y']);
     }
     const adjacentKeyPoints = posenet.getAdjacentKeyPoints(pose.keypoints, minPartConfidence);
     adjacentKeyPoints.forEach((keypoints) => {
-        drawSegment(path2d,keypoints[0].position.x, keypoints[0].position.y, keypoints[1].position.x, keypoints[1].position.y);
+        drawSegment(lines2d,keypoints[0].position.x, keypoints[0].position.y, keypoints[1].position.x, keypoints[1].position.y);
     });
-    ctx.stroke(path2d);
+    drawSegment(lines2d, 0,0, CAM_WIDTH, CAM_HEIGHT);
+    ctx.clearRect(0,0, CAM_WIDTH, CAM_HEIGHT);
+
+    ctx.fillStyle = "red"
+    ctx.strokeStyle = "green"
+
+    ctx.fill(dots2d);
+    ctx.stroke(lines2d);
   }
-  
+}
 
   const loop = () => {    
     // @ts-ignore
@@ -182,6 +188,7 @@ export default function App() {
   const handleCanvas = (canvas) => {
     if (canvas === null) return;
     const ctx = canvas.getContext("2d");
+    setCanvas(canvas);
     setCanvasContext(ctx);
   }
 
