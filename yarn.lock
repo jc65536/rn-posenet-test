@@ -1219,6 +1219,11 @@
     pouchdb-collections "^1.0.1"
     tiny-queue "^0.2.1"
 
+"@gcanvas/core@^1.0.0":
+  version "1.0.0"
+  resolved "https://registry.yarnpkg.com/@gcanvas/core/-/core-1.0.0.tgz#3ef43a084d8a309b90a2eebca553ecb82a0cf77e"
+  integrity sha512-v+moRYrngBYtaFTABYjzeve9H+EAvh1zJd7RCzELQM/vLQCqjcpjh3R+R80W4i4y6dos1yQhMB2SVH8tfx0iEg==
+
 "@hapi/address@2.x.x":
   version "2.1.4"
   resolved "https://registry.yarnpkg.com/@hapi/address/-/address-2.1.4.tgz#5d67ed43f3fd41a69d4b9ff7b56e7c0d1d0a81e5"
@@ -7017,6 +7022,11 @@ react-native-fs@^2.16.6:
   dependencies:
     base-64 "^0.1.0"
     utf8 "^3.0.0"
+
+react-native-gcanvas@^0.0.7-dev:
+  version "0.0.7-dev"
+  resolved "https://registry.yarnpkg.com/react-native-gcanvas/-/react-native-gcanvas-0.0.7-dev.tgz#8a8cd9434737ef12666d58b72f6d88e36b033cfb"
+  integrity sha512-ri6ki9eLUla3VCSslRHRq9kAp1lFrDRsEJBWsdfvC940nD/6GTNOovBlUf3FeXyJaVLUfdbsApFvy3xe/IY3ng==
 
 react-native-gesture-handler@~1.8.0:
   version "1.8.0"
