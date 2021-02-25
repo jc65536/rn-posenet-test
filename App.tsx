@@ -15,8 +15,10 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 // canvas
 import Canvas from "react-native-canvas";
 import { parse } from "@babel/core";
-import { imag, Tensor, Tensor3D } from "@tensorflow/tfjs";
+import { imag, tensor, Tensor, Tensor3D } from "@tensorflow/tfjs";
 import { PosenetInput } from "@tensorflow-models/posenet/dist/types";
+
+const TensorCamera = cameraWithTensors(Camera);
 
 
 export default function App() {
@@ -55,10 +57,12 @@ export default function App() {
         const modelJson = require("./models/model-stride16.json");
         const modelWeights = require("./models/group1-shard1of1.bin");
         setPosenetModel(await posenet.load({
-          // this forces typescript to ignore type checking
-          // @ts-ignore
-          modelUrl: bundleResourceIO(modelJson, modelWeights)
-        }).then(model => {
+          architecture: "MobileNetV1",
+          outputStride: 16,
+          multiplier: 0.5,
+          inputResolution: tensorDims,
+          quantBytes: 2
+      }).then(model => {
           console.log("Posenet model loaded");
           return model;
         }));
@@ -99,11 +103,12 @@ export default function App() {
 
     var numTensors = tf.memory().numTensors;
     console.log(pose);
-    setDebugText(`Tensors: ${numTensors}\nEstimation time: ${performance.now() - t0}\nPose:\n${JSON.stringify(pose)}`);
-    // drawSkeleton(pose);
+    console.log("hello world!");
+    // setDebugText(`Tensors: ${numTensors}\nEstimation time: ${performance.now() - t0}\nPose:\n${JSON.stringify(pose)}`);
+    drawSkeleton(pose);
   }
 
-  /*
+  
   const drawPoint = (x, y) => {
       ctx.beginPath();
       ctx.arc(x, y, 3, 0, 2 * Math.PI);
@@ -132,7 +137,7 @@ export default function App() {
           drawSegment(keypoints[0].position.x, keypoints[0].position.y, keypoints[1].position.x, keypoints[1].position.y);
       });
   }
-  */
+  
 
   const loop = () => {    
     // @ts-ignore
