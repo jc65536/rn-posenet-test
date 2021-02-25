@@ -25,7 +25,7 @@ ReactNativeBridge.Platform = Platform;
 export default class App extends Component {
 
   //draw something with gcanvas
-  draw() => {
+  draw() {
     var ref = this.refs.canvas_holder;
 
     //must convert canvas tag to a string
@@ -60,5 +60,4 @@ export default class App extends Component {
   render(){
       return  <GCanvasView ref='canvas_holder' style={top: 20,width: 414,height :700,backgroundColor: '#FF000030'}></GCanvasView>  
   }
-
 }
