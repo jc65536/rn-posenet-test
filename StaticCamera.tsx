@@ -65,7 +65,8 @@ class StaticCamera extends React.Component<IStaticCameraProps> {
   styles = StyleSheet.create({
     cameraView: {
       width: this.props.width,
-      height: this.props.height
+      height: this.props.height,
+      zIndex: 0
     },
     camera: {
       width: "100%",
