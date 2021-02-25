@@ -13,7 +13,7 @@ import { bundleResourceIO, cameraWithTensors } from "@tensorflow/tfjs-react-nati
 import AsyncStorage from '@react-native-async-storage/async-storage';
 
 // canvas
-import Canvas from "react-native-canvas";
+import Canvas, {Path2D} from "react-native-canvas";
 import { parse } from "@babel/core";
 import { imag, tensor, Tensor, Tensor3D } from "@tensorflow/tfjs";
 import { PosenetInput } from "@tensorflow-models/posenet/dist/types";
@@ -27,6 +27,8 @@ export default function App() {
   const [posenetModel, setPosenetModel] = useState<posenet.PoseNet | null>(null);
   const [frameworkReady, setFrameworkReady] = useState(false);
   const [imageAsTensors, setImageAsTensors] = useState<IterableIterator<Tensor3D> | null>(null);
+  const [canvas, setCanvas] = useState<any>(null);
+
   const [running, setRunning] = useState(false);
 
   const rafId = React.useRef(0);
@@ -102,12 +104,14 @@ export default function App() {
     }
 
     var numTensors = tf.memory().numTensors;
-    console.log(pose);
-    console.log("hello world!");
+
+    //console.log(pose);
+    //console.log("hello world!");
     // setDebugText(`Tensors: ${numTensors}\nEstimation time: ${performance.now() - t0}\nPose:\n${JSON.stringify(pose)}`);
     drawSkeleton(pose);
   }
 
+<<<<<<< HEAD
 
   const drawPoint = (x, y) => {
     if (ctx != null) {
@@ -142,10 +146,38 @@ export default function App() {
       // @ts-ignore
       ctx.closePath();
     }
+=======
+  
+  const drawPoint = (path, x, y) => {
+    const x1 = (CAM_WIDTH / tensorDims.width) * x;
+    const y1 = (CAM_HEIGHT / tensorDims.height) * y;
+    console.log(`${x1}, ${y1}`);
+
+    console.log("x1: " + x1);
+
+      path.arc(x1, y1, 3, 0, 2 * Math.PI);
+      path.closePath();
+  }
+
+
+  const drawSegment = (path, x1, y1, x2, y2) => {
+    const x3 = (CAM_WIDTH / tensorDims.width) * x1;
+    const y3 = (CAM_HEIGHT / tensorDims.height) * y1;
+
+    const x4 = (CAM_WIDTH / tensorDims.width) * x2;
+    const y4 = (CAM_HEIGHT / tensorDims.height) * y2;
+      console.log(`${x3}, ${y3}, ${x4}, ${y4}`);
+
+      path.moveTo(x3, y3);
+      path.lineTo(x4, y4);
+      path.lineWidth = 3;
+      path.closePath();
+>>>>>>> 6fa7dc63a2391a0398ada3a5c4509449a677aa46
   }
 
 
   const drawSkeleton = (pose) => {
+<<<<<<< HEAD
     console.log(pose);
     const minPartConfidence = 0.1;
     for (var i = 0; i < pose.keypoints.length; i++) {
@@ -161,6 +193,34 @@ export default function App() {
       drawSegment(keypoints[0].position.x, keypoints[0].position.y, keypoints[1].position.x, keypoints[1].position.y);
     });
   }
+=======
+    if (ctx != undefined) {
+    let dots2d = new Path2D(canvas);
+    let lines2d = new Path2D(canvas);
+    const minPartConfidence = 0.1;
+    for (var i = 0; i < pose.keypoints.length; i++) {
+        const keypoint = pose.keypoints[i];
+        if (keypoint.score < minPartConfidence) {
+            continue;
+        }
+        // console.log(keypoint);
+        drawPoint(dots2d,keypoint['position']['x'], keypoint['position']['y']);
+    }
+    const adjacentKeyPoints = posenet.getAdjacentKeyPoints(pose.keypoints, minPartConfidence);
+    adjacentKeyPoints.forEach((keypoints) => {
+        drawSegment(lines2d,keypoints[0].position.x, keypoints[0].position.y, keypoints[1].position.x, keypoints[1].position.y);
+    });
+    drawSegment(lines2d, 0,0, CAM_WIDTH *2, CAM_HEIGHT*2);
+    ctx.clearRect(0,0, CAM_WIDTH, CAM_HEIGHT);
+
+    ctx.fillStyle = "red"
+    ctx.strokeStyle = "green"
+
+    ctx.fill(dots2d);
+    ctx.stroke(lines2d);
+  }
+}
+>>>>>>> 6fa7dc63a2391a0398ada3a5c4509449a677aa46
 
 
   const loop = () => {
@@ -184,6 +244,7 @@ export default function App() {
   const handleCanvas = (canvas) => {
     if (canvas === null) return;
     const ctx = canvas.getContext("2d");
+    setCanvas(canvas);
     setCanvasContext(ctx);
   }
 
@@ -200,7 +261,7 @@ export default function App() {
           width={CAM_WIDTH}
           height={CAM_HEIGHT}
         />
-        <Canvas ref={handleCanvas} style={styles.canvas} />
+        <Canvas ref={handleCanvas} style={styles.canvas} height={CAM_HEIGHT} width={CAM_WIDTH}/>
       </View>
       <Button title="Log states" onPress={() => {
         console.log(`========================\nframeworkReady: ${frameworkReady}\nimageAsTensors: ${imageAsTensors ? "loaded" : "unloaded"}\nrunning: ${running}\nrafId: ${rafId.current}\n========================`);
