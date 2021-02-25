@@ -33,9 +33,11 @@ class StaticCamera extends React.Component<IStaticCameraProps> {
     })();
   }
 
+  /*
   shouldComponentUpdate(nextProps, nextState) {
     return false;   // blocks all updates
   }
+  */
 
   render() {
     return (

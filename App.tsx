@@ -98,7 +98,6 @@ export default function App() {
     }
 
     var numTensors = tf.memory().numTensors;
-    console.log(pose);
     setDebugText(`Tensors: ${numTensors}\nEstimation time: ${performance.now() - t0}\nPose:\n${JSON.stringify(pose)}`);
     // drawSkeleton(pose);
   }
@@ -134,7 +133,7 @@ export default function App() {
   }
   */
 
-  const loop = () => {    
+  const loop = () => {
     // @ts-ignore
     const nextImageTensor = imageAsTensors.next().value;
     if (nextImageTensor) {
