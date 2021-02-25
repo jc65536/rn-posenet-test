@@ -114,7 +114,7 @@ export default function App() {
   
   const drawPoint = (path, x, y) => {
     const x1 = (CAM_WIDTH / tensorDims.width) * x;
-    const y1 = (CAM_HEIGHT / tensorDims.width) * y;
+    const y1 = (CAM_HEIGHT / tensorDims.height) * y;
     console.log(`${x1}, ${y1}`);
 
     console.log("x1: " + x1);
@@ -126,10 +126,10 @@ export default function App() {
 
   const drawSegment = (path, x1, y1, x2, y2) => {
     const x3 = (CAM_WIDTH / tensorDims.width) * x1;
-    const y3 = (CAM_HEIGHT / tensorDims.width) * y1;
+    const y3 = (CAM_HEIGHT / tensorDims.height) * y1;
 
     const x4 = (CAM_WIDTH / tensorDims.width) * x2;
-    const y4 = (CAM_HEIGHT / tensorDims.width) * y2;
+    const y4 = (CAM_HEIGHT / tensorDims.height) * y2;
       console.log(`${x3}, ${y3}, ${x4}, ${y4}`);
 
       path.moveTo(x3, y3);
@@ -156,7 +156,7 @@ export default function App() {
     adjacentKeyPoints.forEach((keypoints) => {
         drawSegment(lines2d,keypoints[0].position.x, keypoints[0].position.y, keypoints[1].position.x, keypoints[1].position.y);
     });
-    drawSegment(lines2d, 0,0, CAM_WIDTH, CAM_HEIGHT);
+    drawSegment(lines2d, 0,0, CAM_WIDTH *2, CAM_HEIGHT*2);
     ctx.clearRect(0,0, CAM_WIDTH, CAM_HEIGHT);
 
     ctx.fillStyle = "red"
