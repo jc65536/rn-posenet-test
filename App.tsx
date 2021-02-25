@@ -58,6 +58,6 @@ export default class App extends Component {
 
   //render
   render(){
-      return  <GCanvasView ref='canvas_holder' style={top: 20,width: 414,height :700,backgroundColor: '#FF000030'}></GCanvasView>  
+      return  <GCanvasView ref='canvas_holder' style={{top: 20,width: 414,height :700,backgroundColor: '#FF000030'}}></GCanvasView>
   }
 }
