@@ -100,15 +100,15 @@ export default function App() {
       return;
     }
 
-    let coords = pose.keypoints.map(x => x.position);
-    let tens = tf.tensor(coords);
+    let coords = pose.keypoints.map(x => [x.position.x, x.position.y]);
+    let tens = tf.tensor2d(coords);
     if (learning.current != 3) {
-      if (learning.current) {
+      if (learning.current % 2 == 0) {
         // @ts-ignore
         classifier.addExample(tens, learning.current); // int learning will be the label for our class
       } else {
         // @ts-ignore
-        classifier.predictClass(tens, k = 3).then(obj => setDebugText(JSON.stringify(obj)));
+        classifier.predictClass(tens, k = 5).then(obj => setDebugText(JSON.stringify(obj)));
       }
     }
 
