@@ -11,9 +11,10 @@ import * as tf from "@tensorflow/tfjs";
 import * as posenet from "@tensorflow-models/posenet";
 import { bundleResourceIO, cameraWithTensors } from "@tensorflow/tfjs-react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
+import { KNNClassifier } from "@tensorflow-models/knn-classifier";
 
 // canvas
-import Canvas from "react-native-canvas";
+import Canvas, {Path2D} from "react-native-canvas";
 import { parse } from "@babel/core";
 import { imag, tensor, Tensor, Tensor3D } from "@tensorflow/tfjs";
 import { PosenetInput } from "@tensorflow-models/posenet/dist/types";
@@ -102,64 +103,7 @@ export default function App() {
     }
 
     var numTensors = tf.memory().numTensors;
-    console.log(pose);
-    console.log("hello world!");
-    // setDebugText(`Tensors: ${numTensors}\nEstimation time: ${performance.now() - t0}\nPose:\n${JSON.stringify(pose)}`);
-    drawSkeleton(pose);
-  }
-
-
-  const drawPoint = (x, y) => {
-    if (ctx != null) {
-      // @ts-ignore
-      ctx.beginPath();
-      // @ts-ignore
-      ctx.arc(x, y, 3, 0, 2 * Math.PI);
-      // @ts-ignore
-      ctx.fillStyle = "#00ff00";
-      // @ts-ignore
-      ctx.fill();
-      // @ts-ignore
-      ctx.closePath();
-    }
-  }
-
-
-  const drawSegment = (x1, y1, x2, y2) => {
-    if (ctx != null) {
-      // @ts-ignore
-      ctx.beginPath();
-      // @ts-ignore
-      ctx.moveTo(x1, y1);
-      // @ts-ignore
-      ctx.lineTo(x2, y2);
-      // @ts-ignore
-      ctx.lineWidth = 3;
-      // @ts-ignore
-      ctx.strokeStyle = "#00ff00";
-      // @ts-ignore
-      ctx.stroke();
-      // @ts-ignore
-      ctx.closePath();
-    }
-  }
-
-
-  const drawSkeleton = (pose) => {
-    console.log(pose);
-    const minPartConfidence = 0.1;
-    for (var i = 0; i < pose.keypoints.length; i++) {
-      const keypoint = pose.keypoints[i];
-      if (keypoint.score < minPartConfidence) {
-        continue;
-      }
-      console.log(keypoint);
-      drawPoint(keypoint['position']['x'], keypoint['position']['y']);
-    }
-    const adjacentKeyPoints = posenet.getAdjacentKeyPoints(pose.keypoints, minPartConfidence);
-    adjacentKeyPoints.forEach((keypoints) => {
-      drawSegment(keypoints[0].position.x, keypoints[0].position.y, keypoints[1].position.x, keypoints[1].position.y);
-    });
+    setDebugText(`Tensors: ${numTensors}\nEstimation time: ${performance.now() - t0}\nPose:\n${JSON.stringify(pose)}`);
   }
 
 
@@ -180,14 +124,6 @@ export default function App() {
     setImageAsTensors(iat);
   }
 
-
-  const handleCanvas = (canvas) => {
-    if (canvas === null) return;
-    const ctx = canvas.getContext("2d");
-    setCanvasContext(ctx);
-  }
-
-
   return (
     <View style={styles.container}>
       <View style={styles.body}>
@@ -200,7 +136,6 @@ export default function App() {
           width={CAM_WIDTH}
           height={CAM_HEIGHT}
         />
-        <Canvas ref={handleCanvas} style={styles.canvas} />
       </View>
       <Button title="Log states" onPress={() => {
         console.log(`========================\nframeworkReady: ${frameworkReady}\nimageAsTensors: ${imageAsTensors ? "loaded" : "unloaded"}\nrunning: ${running}\nrafId: ${rafId.current}\n========================`);
