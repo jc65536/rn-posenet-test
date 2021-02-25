@@ -11,15 +11,11 @@ import * as tf from "@tensorflow/tfjs";
 import * as posenet from "@tensorflow-models/posenet";
 import { bundleResourceIO, cameraWithTensors } from "@tensorflow/tfjs-react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
-import { KNNClassifier } from "@tensorflow-models/knn-classifier";
+import * as knn from "@tensorflow-models/knn-classifier";
 
 // canvas
-import Canvas, {Path2D} from "react-native-canvas";
-import { parse } from "@babel/core";
 import { imag, tensor, Tensor, Tensor3D } from "@tensorflow/tfjs";
 import { PosenetInput } from "@tensorflow-models/posenet/dist/types";
-
-const TensorCamera = cameraWithTensors(Camera);
 
 
 export default function App() {
@@ -29,14 +25,14 @@ export default function App() {
   const [frameworkReady, setFrameworkReady] = useState(false);
   const [imageAsTensors, setImageAsTensors] = useState<IterableIterator<Tensor3D> | null>(null);
   const [running, setRunning] = useState(false);
+  const [classifier, setClassifier] = useState<knn.KNNClassifier>();
 
+  const learning = React.useRef(3);
   const rafId = React.useRef(0);
 
   //performance hacks (Platform dependent)
   const textureDims = { width: 1600, height: 1200 };
   const tensorDims = { width: 152, height: 200 };
-
-  const [ctx, setCanvasContext] = useState(null);
 
   const [debugText, setDebugText] = useState("Loading...");
 
@@ -67,6 +63,8 @@ export default function App() {
           console.log("Posenet model loaded");
           return model;
         }));
+
+        setClassifier(knn.create());
 
         setFrameworkReady(true);
       })();
@@ -102,8 +100,21 @@ export default function App() {
       return;
     }
 
-    var numTensors = tf.memory().numTensors;
-    setDebugText(`Tensors: ${numTensors}\nEstimation time: ${performance.now() - t0}\nPose:\n${JSON.stringify(pose)}`);
+    let coords = pose.keypoints.map(x => x.position);
+    let tens = tf.tensor(coords);
+    if (learning.current != 3) {
+      if (learning.current) {
+        // @ts-ignore
+        classifier.addExample(tens, learning.current); // int learning will be the label for our class
+      } else {
+        // @ts-ignore
+        classifier.predictClass(tens, k = 3).then(obj => setDebugText(JSON.stringify(obj)));
+      }
+    }
+
+
+    let numTensors = tf.memory().numTensors;
+    setDebugText(`Tensors: ${numTensors}\nLearning: ${learning.current} \nPose:\n${JSON.stringify(pose)}`);
   }
 
 
@@ -126,7 +137,7 @@ export default function App() {
 
   return (
     <View style={styles.container}>
-      <View style={styles.body}>
+      <View>
         <StaticCamera
           textureHeight={textureDims.height}
           textureWidth={textureDims.width}
@@ -140,8 +151,9 @@ export default function App() {
       <Button title="Log states" onPress={() => {
         console.log(`========================\nframeworkReady: ${frameworkReady}\nimageAsTensors: ${imageAsTensors ? "loaded" : "unloaded"}\nrunning: ${running}\nrafId: ${rafId.current}\n========================`);
       }} />
+      <Button color={"#cc77cc"} title={learning.current == 3 ? "Start learning" : "Learning class " + learning.current} onPress={() => learning.current--} />
       <Button color={running ? "#ee5511" : "#33cc44"} title={`${running ? "Stop" : "Start"} animation`} onPress={() => setRunning(!running)} />
-      <Text>{`Framework ready: ${frameworkReady}\n${debugText}`}</Text>
+      <Text>{debugText}</Text>
     </View>
   );
 }
@@ -155,14 +167,6 @@ const styles = StyleSheet.create({
     justifyContent: "flex-start",
     paddingTop: Constants.statusBarHeight,
     backgroundColor: "#E8E8E8"
-  },
-  body: {
-  },
-  canvas: {
-    width: CAM_WIDTH,
-    height: CAM_HEIGHT,
-    zIndex: 2,
-    position: "absolute"
   }
 });
 
