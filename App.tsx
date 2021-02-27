@@ -123,13 +123,17 @@ class App extends React.Component<any, IState> {
       console.log("posenetModel or tensor undefined");
       return;
     }
-
+    
+    const t0 = performance.now();
     // TENSORFLOW MAGIC HAPPENS HERE!
     const pose = await this.state.posenetModel.estimateSinglePose(tensor, { flipHorizontal: true })
     if (!pose) {
       console.log("pose estimation error");
       return;
     }
+    const poseTime = performance.now() - t0;
+
+    const t1 = performance.now();
 
     this.drawSkeleton(pose);
 
@@ -152,7 +156,7 @@ class App extends React.Component<any, IState> {
   drawPoint = (path, x, y) => {
     const x1 = (CAM_WIDTH / tensorDims.width) * x;
     const y1 = (CAM_HEIGHT / tensorDims.height) * y;
-    path.arc(x1, y1, 6, 0, 2 * Math.PI);
+    path.arc(x1, y1, 4, 0, 2 * Math.PI);
     path.closePath();
   }
 
