@@ -2,6 +2,11 @@ import React, { useState, useEffect, useRef, createRef } from "react";
 import { Text, View, StyleSheet, Button, Dimensions } from "react-native";
 import Constants from "expo-constants";
 
+// files
+import * as fs from 'expo-file-system';
+import * as MediaLibrary from 'expo-media-library';
+import * as docPicker from 'expo-document-picker';
+
 // camera
 import { cameraWithTensors } from "@tensorflow/tfjs-react-native";
 import { Camera } from "expo-camera";
@@ -123,17 +128,13 @@ class App extends React.Component<any, IState> {
       console.log("posenetModel or tensor undefined");
       return;
     }
-    
-    const t0 = performance.now();
+
     // TENSORFLOW MAGIC HAPPENS HERE!
     const pose = await this.state.posenetModel.estimateSinglePose(tensor, { flipHorizontal: true })
     if (!pose) {
       console.log("pose estimation error");
       return;
     }
-    const poseTime = performance.now() - t0;
-
-    const t1 = performance.now();
 
     this.drawSkeleton(pose);
 
@@ -156,7 +157,7 @@ class App extends React.Component<any, IState> {
   drawPoint = (path, x, y) => {
     const x1 = (CAM_WIDTH / tensorDims.width) * x;
     const y1 = (CAM_HEIGHT / tensorDims.height) * y;
-    path.arc(x1, y1, 4, 0, 2 * Math.PI);
+    path.arc(x1, y1, 8, 0, 2 * Math.PI);
     path.closePath();
   }
 
@@ -231,6 +232,7 @@ class App extends React.Component<any, IState> {
     let context = can.getContext("2d");
     context.fillStyle = "#00ff00";
     context.strokeStyle = "#00ff00";
+    context.lineWidth = 5;
     this.setState({ canvas: can, ctx: context });
   }
 
@@ -252,11 +254,34 @@ class App extends React.Component<any, IState> {
           />
           <Canvas ref={this.handleCanvas} style={styles.canvas} />
         </View>
-        <Button title="Log states" onPress={() => {
-          console.log(`========================\nframeworkReady: ${this.state.frameworkReady}\nimageAsTensors: ${this.state.imageAsTensors ? "loaded" : "unloaded"}\nrafId: ${this.state.rafId}\n========================`);
-        }} />
+        <Button title="Log states" onPress={() => { console.log("========================" + JSON.stringify(this.state) + "========================"); }} />
         <Button color={"#cc77cc"} title={this.state.learning % 2 == 0 ? `Start learning (${this.state.learning / 2} learned)` : `Learning class ${this.state.learning}`} onPress={() => this.setState({ learning: this.state.learning + 1 })} />
         <Button color={this.state.running ? "#ee5511" : "#33cc44"} title={`${this.state.running ? "Stop" : "Start"} animation`} onPress={this.state.running ? this.halt : this.start} />
+        <Button color={this.state.learning % 2 == 0 ? "#0077cc" : "#dddddd"} onPress={() => {
+          if (this.state.learning % 2 == 0) {
+            let path = fs.documentDirectory + `folder/class.json`;
+            // @ts-ignore
+            let data = JSON.stringify(Object.entries(this.state.classifier?.getClassifierDataset()).map(([label, data]) => [label, Array.from(data.dataSync()), data.shape]));
+            console.log(data);
+            fs.writeAsStringAsync(path, data, { encoding: fs.EncodingType.UTF8 }).then(() => {
+              console.log("written to file!");
+            });
+          }
+        }} title="Export Class" />
+        <Button color={"#33cc44"} onPress={() => {
+          if (this.state.learning % 2 == 0) {
+            let path = fs.documentDirectory + `folder/class.json`;
+            fs.readAsStringAsync(path, { encoding: fs.EncodingType.UTF8 }).then((str) => {
+              console.log(str)
+            });
+          }
+        }} title="Import Class" />
+        <Button color={"#333333"} onPress={() => {
+          // DANGEROUS!
+          fs.deleteAsync(fs.documentDirectory + "folder", { idempotent: true }).then(() => {
+            fs.makeDirectoryAsync(fs.documentDirectory + "folder");
+          });
+        }} title="Clear files" />
         <Text>{this.state.debugText}</Text>
       </View>
     );
