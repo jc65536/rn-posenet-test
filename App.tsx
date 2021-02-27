@@ -161,16 +161,6 @@ export default function App() {
     ctx.current?.fill(dots2d);
     // @ts-ignore
     ctx.current?.stroke(lines2d);
-    
-    
-    // @ts-ignore
-    ctx.current.beginPath();
-    // @ts-ignore
-    ctx.current.moveTo(0, 0);
-    // @ts-ignore
-    ctx.current.lineTo(100, 100);
-    // @ts-ignore
-    ctx.current.stroke();
   }
 
 
@@ -217,7 +207,7 @@ export default function App() {
           width={CAM_WIDTH}
           height={CAM_HEIGHT}
         />
-        <Canvas ref={handleCanvas} />
+        <Canvas ref={handleCanvas} style={styles.canvas} />
       </View>
       <Button title="Log states" onPress={() => {
         console.log(`========================\nframeworkReady: ${frameworkReady}\nimageAsTensors: ${imageAsTensors.current ? "loaded" : "unloaded"}\nrunning: ${running}\nrafId: ${rafId}\n========================`);
@@ -234,10 +224,14 @@ const CAM_HEIGHT = CAM_WIDTH * 4 / 3;
 
 const styles = StyleSheet.create({
   container: {
-    flex: 1,
-    justifyContent: "flex-start",
     paddingTop: Constants.statusBarHeight,
     backgroundColor: "#E8E8E8"
+  },
+  canvas: {
+    position: "absolute",
+    zIndex: 2,
+    borderWidth: 1,
+    borderColor: "red"
   }
 });
 
