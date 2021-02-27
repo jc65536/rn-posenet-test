@@ -279,7 +279,9 @@ class App extends React.Component<any, IState> {
         <Button color={"#333333"} onPress={() => {
           // DANGEROUS!
           fs.deleteAsync(fs.documentDirectory + "folder", { idempotent: true }).then(() => {
-            fs.makeDirectoryAsync(fs.documentDirectory + "folder");
+            fs.makeDirectoryAsync(fs.documentDirectory + "folder").then(() => {
+              console.log("classes cleared");
+            });
           });
         }} title="Clear files" />
         <Text>{this.state.debugText}</Text>
