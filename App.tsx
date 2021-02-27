@@ -106,16 +106,16 @@ export default function App() {
     if (learning.current != 3) {
       if (learning.current % 2 == 0) {
         // @ts-ignore
-        classifier.addExample(tens, learning); // int learning will be the label for our class
+        classifier.current?.addExample(tens, learning); // int learning will be the label for our class
       } else {
         // @ts-ignore
-        classifier.predictClass(tens, k = 5).then(obj => setDebugText(JSON.stringify(obj)));
+        classifier.current?.predictClass(tens, k = 5).then(obj => setDebugText(JSON.stringify(obj)));
       }
     }
     tens.dispose();
 
     let numTensors = tf.memory().numTensors;
-    setDebugText(`Tensors: ${numTensors}\nLearning: ${learning.current} \nPose:\n${JSON.stringify(pose)}`);
+    //setDebugText(`Tensors: ${numTensors}\nLearning: ${learning.current} \nPose:\n${JSON.stringify(pose)}`);
   }
 
 
