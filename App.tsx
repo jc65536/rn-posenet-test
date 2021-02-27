@@ -50,8 +50,6 @@ export default function App() {
       console.log("TF is ready");
 
       // load the mobilenet model and save it in state
-      const modelJson = require("./models/model-stride16.json");
-      const modelWeights = require("./models/group1-shard1of1.bin");
       posenetModel.current = await posenet.load({
         architecture: "MobileNetV1",
         outputStride: 16,
@@ -94,15 +92,23 @@ export default function App() {
       console.log("posenetModel or tensor undefined");
       return;
     }
-
+    
+    const t0 = performance.now();
     // TENSORFLOW MAGIC HAPPENS HERE!
     const pose = await posenetModel.current?.estimateSinglePose(tensor, { flipHorizontal: true })
     if (!pose) {
       console.log("pose estimation error");
       return;
     }
+    const poseTime = performance.now() - t0;
+
+    const t1 = performance.now();
 
     drawSkeleton(pose);
+
+    const drawTime = performance.now() - t1;
+
+    const t2 = performance.now();
 
     let coords = pose.keypoints.map(x => [x.position.x, x.position.y]);
     let tens = tf.tensor2d(coords);
@@ -115,16 +121,19 @@ export default function App() {
         classifier.predictClass(tens, k = 5).then(obj => setDebugText(JSON.stringify(obj)));
       }
     }
+    tens.dispose();
+
+    const learnTime = performance.now() - t2;
 
     let numTensors = tf.memory().numTensors;
-    setDebugText(`Tensors: ${numTensors}\nLearning: ${learning} \nPose:\n${JSON.stringify(pose)}`);
+    setDebugText(`Tensors: ${numTensors}\nLearning: ${learning} \nPose Time: ${poseTime}\nDraw Time: ${drawTime}\nLearn Time: ${learnTime}\nTotal Time: ${learnTime + poseTime + drawTime}`);
   }
 
 
   const drawPoint = (path, x, y) => {
     const x1 = (CAM_WIDTH / tensorDims.width) * x;
     const y1 = (CAM_HEIGHT / tensorDims.height) * y;
-    path.arc(x1, y1, 6, 0, 2 * Math.PI);
+    path.arc(x1, y1, 4, 0, 2 * Math.PI);
     path.closePath();
   }
 
@@ -136,7 +145,7 @@ export default function App() {
     const y4 = (CAM_HEIGHT / tensorDims.height) * y2;
     path.moveTo(x3, y3);
     path.lineTo(x4, y4);
-    path.lineWidth = 6;
+    path.lineWidth = 4;
     path.closePath();
   }
 
@@ -188,8 +197,8 @@ export default function App() {
     can.height = CAM_HEIGHT;
     can.width = CAM_WIDTH;
     const context = can.getContext("2d");
-    context.fillStyle = "#00ff00";
-    context.strokeStyle = "#00ff00";
+    context.fillStyle = "red";
+    context.strokeStyle = "green";
     canvas.current = can;
     ctx.current = context;
   }
@@ -231,7 +240,6 @@ const styles = StyleSheet.create({
     position: "absolute",
     zIndex: 2,
     borderWidth: 1,
-    borderColor: "red"
   }
 });
 
