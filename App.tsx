@@ -32,13 +32,13 @@ export default function App() {
   const canvas = useRef<{ height: number; width: number; getContext: (arg0: string) => any; }>();
   const ctx = useRef();
   const classifier = useRef<knn.KNNClassifier>();
-  let rafId = 0;
+  const learning = useRef(3);
+  const rafId = useRef(0);
 
   // state variables
   const [frameworkReady, setFrameworkReady] = useState(false);
   const [cameraReady, setCameraReady] = useState(false);
   const [running, setRunning] = useState(false);
-  const [learning, setLearning] = useState(3);
   const [debugText, setDebugText] = useState("Loading...");
 
 
@@ -81,7 +81,7 @@ export default function App() {
       console.log("starting loop");
       loop();
     } else {
-      cancelAnimationFrame(rafId);
+      cancelAnimationFrame(rafId.current);
       console.log(`stopped!`);
     }
   }, [running])
@@ -112,8 +112,8 @@ export default function App() {
 
     let coords = pose.keypoints.map(x => [x.position.x, x.position.y]);
     let tens = tf.tensor2d(coords);
-    if (learning != 3) {
-      if (learning % 2 == 0) {
+    if (learning.current != 3) {
+      if (learning.current % 2 == 0) {
         // @ts-ignore
         classifier.addExample(tens, learning); // int learning will be the label for our class
       } else {
@@ -179,7 +179,7 @@ export default function App() {
     if (nextImageTensor) {
       getPrediction(nextImageTensor).then(() => {
         nextImageTensor.dispose();
-        rafId = requestAnimationFrame(loop);
+        rafId.current = requestAnimationFrame(loop);
       });
     }
   }
@@ -221,7 +221,7 @@ export default function App() {
       <Button title="Log states" onPress={() => {
         console.log(`========================\nframeworkReady: ${frameworkReady}\nimageAsTensors: ${imageAsTensors.current ? "loaded" : "unloaded"}\nrunning: ${running}\nrafId: ${rafId}\n========================`);
       }} />
-      <Button color={"#cc77cc"} title={learning == 3 ? "Start learning" : "Learning class " + learning} onPress={() => setLearning(learning - 1)} />
+      <Button color={"#cc77cc"} title={learning.current == 3 ? "Start learning" : "Learning class " + learning.current} onPress={() => learning.current--} />
       <Button color={running ? "#ee5511" : "#33cc44"} title={`${running ? "Stop" : "Start"} animation`} onPress={() => setRunning(!running)} />
       <Text>{debugText}</Text>
     </View>
