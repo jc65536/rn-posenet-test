@@ -1,125 +1,155 @@
-import React, { useState, useEffect, useRef } from "react";
-import { ActivityIndicator, Text, View, ScrollView, StyleSheet, Button, Platform, Dimensions } from "react-native";
+import React, { useState, useEffect, useRef, createRef } from "react";
+import { Text, View, StyleSheet, Button, Dimensions } from "react-native";
 import Constants from "expo-constants";
 
 // camera
+import { cameraWithTensors } from "@tensorflow/tfjs-react-native";
 import { Camera } from "expo-camera";
-import StaticCamera from "./StaticCamera";
 
 // tensorflow
 import * as tf from "@tensorflow/tfjs";
 import * as posenet from "@tensorflow-models/posenet";
-import { bundleResourceIO, cameraWithTensors } from "@tensorflow/tfjs-react-native";
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import * as knn from "@tensorflow-models/knn-classifier";
 
 // canvas
 import Canvas, { Path2D } from "react-native-canvas";
-import { parse } from "@babel/core";
-import { imag, tensor, Tensor, Tensor3D } from "@tensorflow/tfjs";
+import { tensor, Tensor3D } from "@tensorflow/tfjs";
 import { PosenetInput } from "@tensorflow-models/posenet/dist/types";
 
 
-export default function App() {
+interface IState {
+  // will cause rerender
+  running: boolean,
 
-  // performance hacks (Platform dependent)
-  const textureDims = { width: 1600, height: 1200 };
-  const tensorDims = { width: 152, height: 200 };
-
-  // global variables
-  const posenetModel = useRef<posenet.PoseNet>();
-  const imageAsTensors = useRef<IterableIterator<Tensor3D>>();
-  const canvas = useRef<{ height: number; width: number; getContext: (arg0: string) => any; }>();
-  const ctx = useRef();
-  const classifier = useRef<knn.KNNClassifier>();
-  const learning = useRef(3);
-  const rafId = useRef(0);
-
-  // state variables
-  const [frameworkReady, setFrameworkReady] = useState(false);
-  const [cameraReady, setCameraReady] = useState(false);
-  const [running, setRunning] = useState(false);
-  const [debugText, setDebugText] = useState("Loading...");
+  // will not cause rerender
+  frameworkReady: boolean,
+  cameraReady: boolean,
+  posenetModel: posenet.PoseNet | null,
+  imageAsTensors: IterableIterator<Tensor3D> | null,
+  canvas: any,
+  ctx: any,
+  classifier: knn.KNNClassifier | null,
+  debugText: string,
+  learning: number,
+  rafId: number
+}
 
 
-  useEffect(() => {
+// performance hacks (Platform dependent)
+const textureDims = { width: 1600, height: 1200 };
+const tensorDims = { width: 152, height: 200 };
+const TensorCamera = cameraWithTensors(Camera);
+
+
+class App extends React.Component<any, IState> {
+
+  constructor(props) {
+    super(props);
+    this.state = {
+      frameworkReady: false,
+      cameraReady: false,
+      running: false,
+      posenetModel: null,
+      imageAsTensors: null,
+      canvas: null,
+      ctx: null,
+      classifier: null,
+      learning: 0,
+      rafId: 0,
+      debugText: "Loading..."
+    }
+  }
+
+
+  setFrameworkReady = (v: boolean) => {
+    this.setState({ frameworkReady: v }, () => {
+      if (v && this.state.cameraReady) {
+        this.start();
+      } else {
+        this.halt();
+      }
+    });
+  }
+
+
+  setCameraReady = (v: boolean) => {
+    this.setState({ cameraReady: v }, () => {
+      if (v && this.state.frameworkReady) {
+        this.start();
+      } else {
+        this.halt();
+      }
+    });
+  }
+
+
+  print = (s) => {
+    this.setState({ debugText: s });
+  }
+
+
+  componentDidMount() {
     (async () => {
+
+      const { status } = await Camera.requestPermissionsAsync();
+      console.log(`permissions: ${status}`);
 
       // we must always wait for the Tensorflow API to be ready before any TF operation...
       await tf.ready();
       console.log("TF is ready");
 
-      posenetModel.current = await posenet.load({
-        architecture: "MobileNetV1",
-        outputStride: 16,
-        multiplier: 0.5,
-        inputResolution: tensorDims,
-        quantBytes: 2
-      }).then(model => {
-        console.log("Posenet model loaded");
-        return model;
+      this.setState({
+        posenetModel: await posenet.load({
+          architecture: "MobileNetV1",
+          outputStride: 16,
+          multiplier: 0.5,
+          inputResolution: tensorDims,
+          quantBytes: 2
+        }).then(model => {
+          console.log("Posenet model loaded");
+          return model;
+        }),
+        classifier: knn.create(),
       });
 
-      classifier.current = knn.create();
-
-      setFrameworkReady(true);
+      this.setFrameworkReady(true);
     })();
-  }, []);
+  }
 
 
-  useEffect(() => {
-    if (frameworkReady && cameraReady) {
-      console.log("framework and camera ready");
-      setRunning(true);
-    }
-  }, [frameworkReady, cameraReady]);
-
-
-  useEffect(() => {
-    if (running) {
-      console.log("starting loop");
-      loop();
-    } else {
-      cancelAnimationFrame(rafId.current);
-      console.log(`stopped!`);
-    }
-  }, [running])
-
-
-  const getPrediction = async (tensor: PosenetInput) => {
-    if (!tensor || !posenetModel.current) {
+  getPrediction = async (tensor: PosenetInput) => {
+    if (!tensor || !this.state.posenetModel) {
       console.log("posenetModel or tensor undefined");
       return;
     }
 
     // TENSORFLOW MAGIC HAPPENS HERE!
-    const pose = await posenetModel.current?.estimateSinglePose(tensor, { flipHorizontal: true })
+    const pose = await this.state.posenetModel.estimateSinglePose(tensor, { flipHorizontal: true })
     if (!pose) {
       console.log("pose estimation error");
       return;
     }
 
-    drawSkeleton(pose);
+    this.drawSkeleton(pose);
 
-    let coords = pose.keypoints.map(x => [x.position.x, x.position.y]);
-    let tens = tf.tensor2d(coords);
-    if (learning.current != 3) {
-      if (learning.current % 2 == 0) {
-        // @ts-ignore
-        classifier.current?.addExample(tens, learning); // int learning will be the label for our class
+    let tens = tf.tensor2d(pose.keypoints.map(x => [x.position.x, x.position.y]));
+    let str = "learning...";
+    if (this.state.learning > 0) {
+      if (this.state.learning % 2 == 1) {
+        this.state.classifier?.addExample(tens, this.state.learning); // int learning will be the label for our class
       } else {
-        // @ts-ignore
-        classifier.current?.predictClass(tens, k = 5).then(obj => setDebugText(JSON.stringify(obj)));
+        str = JSON.stringify(await this.state.classifier?.predictClass(tens, 5));
       }
     }
     tens.dispose();
-
     let numTensors = tf.memory().numTensors;
-    //setDebugText(`Tensors: ${numTensors}\nLearning: ${learning.current} \nPose:\n${JSON.stringify(pose)}`);
+
+    this.print(`Tensors: ${numTensors}\nLearning: ${this.state.learning} \nPose: ${str}`);
   }
 
 
-  const drawPoint = (path, x, y) => {
+  drawPoint = (path, x, y) => {
     const x1 = (CAM_WIDTH / tensorDims.width) * x;
     const y1 = (CAM_HEIGHT / tensorDims.height) * y;
     path.arc(x1, y1, 6, 0, 2 * Math.PI);
@@ -127,94 +157,106 @@ export default function App() {
   }
 
 
-  const drawSegment = (path, x1, y1, x2, y2) => {
+  drawSegment = (path, x1, y1, x2, y2) => {
     const x3 = (CAM_WIDTH / tensorDims.width) * x1;
     const y3 = (CAM_HEIGHT / tensorDims.height) * y1;
     const x4 = (CAM_WIDTH / tensorDims.width) * x2;
     const y4 = (CAM_HEIGHT / tensorDims.height) * y2;
     path.moveTo(x3, y3);
     path.lineTo(x4, y4);
-    path.lineWidth = 6;
     path.closePath();
   }
 
 
-  const drawSkeleton = (pose) => {
-    let dots2d = new Path2D(canvas.current);
-    let lines2d = new Path2D(canvas.current);
+  drawSkeleton = (pose) => {
+    let dots2d = new Path2D(this.state.canvas);
+    let lines2d = new Path2D(this.state.canvas);
     const minPartConfidence = 0.1;
     for (var i = 0; i < pose.keypoints.length; i++) {
       const keypoint = pose.keypoints[i];
       if (keypoint.score >= minPartConfidence) {
-        drawPoint(dots2d, keypoint.position.x, keypoint.position.y);
+        this.drawPoint(dots2d, keypoint.position.x, keypoint.position.y);
       }
     }
     const adjacentKeyPoints = posenet.getAdjacentKeyPoints(pose.keypoints, minPartConfidence);
     adjacentKeyPoints.forEach((keypoints) => {
-      drawSegment(lines2d, keypoints[0].position.x, keypoints[0].position.y, keypoints[1].position.x, keypoints[1].position.y);
+      this.drawSegment(lines2d, keypoints[0].position.x, keypoints[0].position.y, keypoints[1].position.x, keypoints[1].position.y);
     });
-    // @ts-ignore
-    ctx.current?.clearRect(0, 0, CAM_WIDTH, CAM_HEIGHT);
-    // @ts-ignore
-    ctx.current?.fill(dots2d);
-    // @ts-ignore
-    ctx.current?.stroke(lines2d);
+    this.state.ctx?.clearRect(0, 0, CAM_WIDTH, CAM_HEIGHT);
+    this.state.ctx?.fill(dots2d);
+    this.state.ctx?.stroke(lines2d);
   }
 
 
-  const loop = async () => {
-    // @ts-ignore
-    const nextImageTensor = imageAsTensors.current.next().value;
+  start = () => {
+    console.log("starting loop");
+    this.loop();
+    this.setState({ running: true });
+  }
+
+
+  halt = () => {
+    cancelAnimationFrame(this.state.rafId);
+    console.log(`stopped!`);
+    this.setState({ running: false });
+  }
+
+
+  loop = async () => {
+    const nextImageTensor = this.state.imageAsTensors?.next().value;
     if (nextImageTensor) {
-      getPrediction(nextImageTensor).then(() => {
+      this.getPrediction(nextImageTensor).then(() => {
         nextImageTensor.dispose();
-        rafId.current = requestAnimationFrame(loop);
+        this.setState({ rafId: requestAnimationFrame(this.loop) });
       });
     }
   }
 
 
-  const handleCameraStream = async (iat) => {
+  handleCameraStream = async (iat) => {
     console.log("Camera loaded");
-    imageAsTensors.current = iat;
-    setCameraReady(true);
+    this.setState({ imageAsTensors: iat });
+    this.setCameraReady(true);
   }
 
 
-  const handleCanvas = (can: { height: number; width: number; getContext: (arg0: string) => any; } | null) => {
+  handleCanvas = (can) => {
     if (can === null) return;
     can.height = CAM_HEIGHT;
     can.width = CAM_WIDTH;
-    const context = can.getContext("2d");
+    let context = can.getContext("2d");
     context.fillStyle = "#00ff00";
     context.strokeStyle = "#00ff00";
-    canvas.current = can;
-    ctx.current = context;
+    this.setState({ canvas: can, ctx: context });
   }
 
 
-  return (
-    <View style={styles.container}>
-      <View>
-        <StaticCamera
-          textureHeight={textureDims.height}
-          textureWidth={textureDims.width}
-          tensorHeight={tensorDims.height}
-          tensorWidth={tensorDims.width}
-          handler={(iat) => handleCameraStream(iat)}
-          width={CAM_WIDTH}
-          height={CAM_HEIGHT}
-        />
-        <Canvas ref={handleCanvas} style={styles.canvas} />
+  render() {
+    return (
+      <View style={styles.container} >
+        <View>
+          <TensorCamera style={styles.camera}
+            type={Camera.Constants.Type.front}
+            zoom={0}
+            cameraTextureHeight={textureDims.height}
+            cameraTextureWidth={textureDims.width}
+            resizeHeight={tensorDims.height}
+            resizeWidth={tensorDims.width}
+            resizeDepth={3}
+            onReady={this.handleCameraStream}
+            autorender={true}
+          />
+          <Canvas ref={this.handleCanvas} style={styles.canvas} />
+        </View>
+        <Button title="Log states" onPress={() => {
+          console.log(`========================\nframeworkReady: ${this.state.frameworkReady}\nimageAsTensors: ${this.state.imageAsTensors ? "loaded" : "unloaded"}\nrafId: ${this.state.rafId}\n========================`);
+        }} />
+        <Button color={"#cc77cc"} title={this.state.learning % 2 == 0 ? `Start learning (${this.state.learning / 2} learned)` : `Learning class ${this.state.learning}`} onPress={() => this.setState({ learning: this.state.learning + 1 })} />
+        <Button color={this.state.running ? "#ee5511" : "#33cc44"} title={`${this.state.running ? "Stop" : "Start"} animation`} onPress={this.state.running ? this.halt : this.start} />
+        <Text>{this.state.debugText}</Text>
       </View>
-      <Button title="Log states" onPress={() => {
-        console.log(`========================\nframeworkReady: ${frameworkReady}\nimageAsTensors: ${imageAsTensors.current ? "loaded" : "unloaded"}\nrunning: ${running}\nrafId: ${rafId}\n========================`);
-      }} />
-      <Button color={"#cc77cc"} title={learning.current == 3 ? "Start learning" : "Learning class " + learning.current} onPress={() => learning.current--} />
-      <Button color={running ? "#ee5511" : "#33cc44"} title={`${running ? "Stop" : "Start"} animation`} onPress={() => setRunning(!running)} />
-      <Text>{debugText}</Text>
-    </View>
-  );
+    );
+  }
 }
 
 const CAM_WIDTH = Dimensions.get("window").width;
@@ -222,17 +264,23 @@ const CAM_HEIGHT = CAM_WIDTH * 4 / 3;
 
 const styles = StyleSheet.create({
   container: {
-    paddingTop: Constants.statusBarHeight,
-    backgroundColor: "#E8E8E8"
+    paddingTop: Constants.statusBarHeight
   },
   canvas: {
     position: "absolute",
     zIndex: 2,
     borderWidth: 1,
     borderColor: "red"
+  },
+  camera: {
+    width: CAM_WIDTH,
+    height: CAM_HEIGHT,
+    zIndex: 0
   }
 });
 
+
+export default App;
 
 
 ///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
